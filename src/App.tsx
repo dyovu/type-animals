@@ -16,8 +16,8 @@ function App() {
       <h3>Type anymals</h3>
       {isSetting ? (
         <div className="button-container">
-          <button onClick={() => invoke('my_custom_command', { arg: 'Button 1' })}> Start </button>
-          <button onClick={() => invoke('my_custom_command', { arg: 'Button 2' })}> Stop </button>
+          <button onClick={() => invoke('start_listening')}> Start </button>
+          <button onClick={() => invoke('stop_listening')}> Stop </button>
           <Settings isSetting={isSetting} setIsSetting={setIsSetting} />
         </div>
       ):(
