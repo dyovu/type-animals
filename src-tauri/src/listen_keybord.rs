@@ -3,6 +3,7 @@ use std::process::{Command, Stdio, Child};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+
 pub struct AppState {
     pub listener_process: Arc<Mutex<Option<Child>>>, // マウス位置取得のバイナリクレートのプロセス
 }
