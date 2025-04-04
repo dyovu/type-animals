@@ -15,7 +15,7 @@ pub fn start_listening(app_state: tauri::State<AppState>) {
 
     // プロセスが起動しているときは何もしない
     {
-        let state = app_state.listener_process.lock().unwrap();
+        let state = app_state.listener_process.lock().expect("Failed to lock mutex");
         if state.is_some() {
             println!("listener process is already running");
             return;
@@ -56,7 +56,7 @@ pub fn start_listening(app_state: tauri::State<AppState>) {
     }
 
     // `listener_process` を AppState に格納
-    let mut state = app_state.listener_process.lock().unwrap();
+    let mut state = app_state.listener_process.lock().expect("Failed to lock mutex");
     *state = Some(listener_process);
 }
 
@@ -64,7 +64,7 @@ pub fn start_listening(app_state: tauri::State<AppState>) {
 
 #[tauri::command]
 pub fn stop_listening(app_state: tauri::State<AppState>) {
-    let listener_process = app_state.listener_process.lock().unwrap().take();
+    let listener_process = app_state.listener_process.lock().expect("Failed to lock mutex").take();
     if let Some(mut listener_process) = listener_process {
         listener_process.kill().expect("failed to kill listener process");
         println!("process killed successfully");
