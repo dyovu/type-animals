@@ -3,8 +3,10 @@ use tauri::tray::TrayIconBuilder;
 use std::sync::{Arc, Mutex};
 
 mod listen_keybord;
-use listen_keybord::AppState;
 mod get_directories;
+
+mod config;
+use config::AppState;
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -1,37 +1,39 @@
-use std::thread;
-use std::path::{self, PathBuf};
+use std::path::PathBuf;
 use std::fs;
-use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
 
 use dirs;
-use once_cell::sync::Lazy;
 
-
-pub mod app_paths{
-    use super::*; // app_pathsモジュールの外側でArc, Mutex, Lazy等をuseしているから、このモジュール内にimprtする必要がある
-
-    pub static DOWNLOADS_PATH: Lazy<Arc<Mutex<Option<PathBuf>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
-    pub static APP_DATA_PATH: Lazy<Arc<Mutex<Option<PathBuf>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
-}
+use crate::config::{app_paths, Entry};
 
 
 pub fn get_directory(){
     // アプリケーション独自のパスに"animal_list.json"があるか確認、なければ作成
-    // 名前と動画のリストを保存する
-    let file_name:&str = "animal_list.json";
+
+    
     if let Some(data_dir) = dirs::data_dir() {
         let mut path = app_paths::APP_DATA_PATH.lock().unwrap();
-        let full_path:PathBuf = data_dir.join(file_name);
+        let full_path:PathBuf = data_dir.join(app_paths::FILE_NAME);
+
+        match fs::exists(&full_path){
+            Ok(true) =>{
+                println!("すでにファイルが存在しています");
+            }
+            Ok(false) =>{ // ファイルが存在していない、新規作成する
+                println!("ファイルが存在していません、新規作成します");
+                let json_str:&str = include_str!("../default_data/sample.json");
+                // let json_str = fs::read_to_string("default_data/sample.json").expect("サンプルファイルの読み込みに失敗しました");
+                let mut data: HashMap<String, Entry> = serde_json::from_str(json_str).expect("JSONのパースに失敗しました");
+            }
+            Err(_) => {
+                println!("ファイルの存在確認に失敗しました");
+            }
+        }
+
         *path = Some(full_path);
         println!("APP_DATA_PATH is: {:?}", path);
     }
 
-    // ダウンロードディレクトリ
-    if let Some(downloads_dir) = dirs::download_dir() {
-        let mut path = app_paths::DOWNLOADS_PATH.lock().unwrap();
-        *path = Some(downloads_dir);
-        println!("DOWNLOADS_PATH is: {:?}", path);
-    }
 }
 
 

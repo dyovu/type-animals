@@ -9,7 +9,8 @@
     - 押したkeyをカウントして保存していく(判定するために、取り出しやすい構造にする)
     - 全てのスペルが押されたら、画像を表示
     - フロント側からの、画像/文字列のCRUDの処理
-    - コントロールセンターにメニューを追加する (https://zenn.dev/aidemy/articles/8d8e406967d386)[https://zenn.dev/aidemy/articles/8d8e406967d386]
+    - コントロールセンターにメニューを追加する [https://zenn.dev/aidemy/articles/8d8e406967d386](https://zenn.dev/aidemy/articles/8d8e406967d386)
+    - エラーハンドリングでpanicさせない
 - フロント
     - 設定から文字列と画像の登録、削除、変更
 
