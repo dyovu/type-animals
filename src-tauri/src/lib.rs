@@ -1,3 +1,5 @@
+use tauri::tray::TrayIconBuilder;
+
 use std::sync::{Arc, Mutex};
 
 mod listen_keybord;
@@ -8,8 +10,11 @@ mod get_directories;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .setup(|_|{
+        .setup(|app|{
             let _ = get_directories::get_directory();
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .build(app)?;
             Ok(())
         })
         .manage(AppState { // AppStateを手動で初期化する必要がある、そのためArcやMutexを使っている

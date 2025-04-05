@@ -14,6 +14,7 @@ pub mod app_paths{
     pub static APP_DATA_PATH: Lazy<Arc<Mutex<Option<PathBuf>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 }
 
+
 pub fn get_directory(){
     // アプリケーション独自のパスに"animal_list.json"があるか確認、なければ作成
     // 名前と動画のリストを保存する
