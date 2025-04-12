@@ -11,6 +11,7 @@
         - 考慮事項 : 
             hash mapのkey検索は遅い？
             文字列が多くなると探索が膨大になる？
+    - 文字列と画像pathのJSON、"cat":"{path}"でよくない？
     - 全てのスペルが押されたら、画像を表示
     - フロント側からの、画像/文字列のCRUDの処理
     - コントロールセンターにメニューを追加する [https://zenn.dev/aidemy/articles/8d8e406967d386](https://zenn.dev/aidemy/articles/8d8e406967d386)

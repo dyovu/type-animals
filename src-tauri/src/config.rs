@@ -27,3 +27,5 @@ pub struct Entry {
     pub spell: String,
     pub path: String,
 }
+
+

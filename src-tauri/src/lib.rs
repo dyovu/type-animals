@@ -8,6 +8,8 @@ mod get_directories;
 mod config;
 use config::AppState;
 
+mod count_keys;
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
