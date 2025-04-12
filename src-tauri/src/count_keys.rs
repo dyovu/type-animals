@@ -7,13 +7,19 @@ pub fn count_keys(typed_key :char){
     ]);
 
 
-    for (key, value) in key_counts{
-        if &typed_key == value.front().unwrap(){
-            let key_c: char = *value.pop_front().unwrap();
+    for (key, dq) in key_counts.iter_mut() {
+        if let Some(&front) = dq.front() {
+            if typed_key == front {
+                dq.pop_front();
+                println!("'{}' matched front of '{}' → updated queue: {:?}", typed_key, key, dq);
 
-            
-        }else{
-
+                // すべての文字を入力し終わった場合
+                if dq.is_empty() {
+                    println!("'{}' 完成！", key);
+                }
+            } else {
+                println!("'{}' は '{}' の先頭ではない", typed_key, key);
+            }
         }
     }
 
