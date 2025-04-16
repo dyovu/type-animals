@@ -20,7 +20,7 @@ pub fn start_listening() {
         }
     }
 
-    // key＿cおウントをリセット
+    // key_countをウントをリセット
     initialize_key_count();
 
     // 新しいプロセスを起動
@@ -32,6 +32,7 @@ pub fn start_listening() {
     
     println!("process started successfully");
 
+    // 標準出力からkeyを取得して、判定→描画の処理を行う
     if let Some(stdout) = listener_process.stdout.take() { // '=' の返り値がSome()型ならその値をstdoutにいれるということ、
         let reader = BufReader::new(stdout);
         thread::spawn(move||{
@@ -40,13 +41,18 @@ pub fn start_listening() {
                     println!("pressed key of {}", line);
 
                     if let Some(key) = check_key(line.clone()){
-                        count_keys(key);
+                        if let Some(path) = count_keys(key){
+                            /*
+                                画像描画の処理を追加
+                             */
+                        }
                     }
                 }
             }
         });
     }
 
+    // エラーが出たらエラーを表示
     if let Some(stderr) = listener_process.stderr.take() {
         let reader = BufReader::new(stderr);
         thread::spawn(move||{

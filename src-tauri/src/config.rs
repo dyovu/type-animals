@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 use std::collections::{HashMap, VecDeque};
 
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 
 // マウス位置取得のバイナリクレートのプロセス
 pub struct AppState {
@@ -84,10 +83,8 @@ pub mod key_counts{
         dq.pop_front();
 
         if dq.is_empty() {
-            // キーの各文字をVecDequeに追加
-            for c in key.chars() {
-                dq.push_back(c);
-            }
+            dq.extend(key.chars());
+            println!("全てのキーが入力されました: {}", key);
             return true;
         }
         return false;
@@ -95,14 +92,16 @@ pub mod key_counts{
 }
 
 
+
 pub mod json_data{
     use super::*;
 
+    // アプリケーションのフォルダに保存しているjsonファイルのデータを格納する
     pub static JSON_DATA: Lazy<Arc<Mutex<HashMap<String, String>>>> = Lazy::new(||Arc::new(Mutex::new(HashMap::new())));
 
-    // jsonファイル作成時と値を変更、追加した際に呼び出す
+    // jsonファイル作成時(アプリケーション起動時)と値を変更、追加した際に呼び出す
     pub fn initialize_json_data() {
-        let json_path: PathBuf = app_paths::APP_DATA_PATH.lock().unwrap().as_ref().expect("アプリケーションのパスが初期化されていません").join(app_paths::JSON_FILE);
+        let json_path: PathBuf = app_paths::get_json_path();
 
         let mut data = JSON_DATA.lock().unwrap();
         let json_str = std::fs::read_to_string(json_path).expect("JSONファイルの読み込みに失敗しました");
@@ -110,14 +109,13 @@ pub mod json_data{
 
         println!("JSONデータの初期化完了: {:?}", data);
     }
+
+    pub fn get_json_data() -> HashMap<String, String> {
+        let data = JSON_DATA.lock().unwrap();
+        data.clone()
+    }
 }
 
 
 
-// スペルとパスを保存するJSONの構造体の定義
-// #[derive(Serialize, Deserialize, Debug, Clone)]  // Cloneを追加しておくと便利
-// pub struct Entry {
-//     pub spell: String,
-//     pub path: String,
-// }
 

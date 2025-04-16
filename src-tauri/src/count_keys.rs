@@ -1,39 +1,31 @@
-use std::collections::{HashMap, VecDeque};
+use std::path::PathBuf;
 
 use crate::config::key_counts::{get_keycount, pop_and_refill};
+use crate::config::json_data::JSON_DATA;
 
 
-pub fn count_keys(typed_key: char){
+pub fn count_keys(typed_key: char) -> Option<PathBuf> {
     let mut key_counts = get_keycount();
-
 
     for (key, dq) in key_counts.iter_mut() {
         if let Some(&front) = dq.front() {
             println!("'{}' の先頭は '{}' です", key, front);
             if typed_key == front {
                 let finished_typed:bool = pop_and_refill(key);
-
-
-
-
-
-
-                dq.pop_front();
-                println!("'{}' matched front of '{}' → updated dequeue: {:?}", typed_key, key, dq);
-                // println!(dq);
-
-                if dq.is_empty() {
-                    println!("'{}' の入力が完了しました", key);
-
-                    dq.extend(key.chars())
-                    // *dq = &key.chars().collect::<VecDeque<char>>()
+                if finished_typed{
+                    let json = JSON_DATA.lock().unwrap();
+                    let path:&str = json.get(key).unwrap();
+                    return Some(PathBuf::from(path));
                 }
             } else {
                 println!("'{}' は '{}' の先頭ではない", typed_key, key);
+                return None;
             }
         }
     }
+    return None;
 }
+
 
 
 
