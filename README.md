@@ -4,11 +4,7 @@
 
 ## ToDo:
 - バック
-    - vecdequeの条件を満たしたら、jsonからスペルのkeyに対応するpathを返す
-
-    - 一番最初の文字を押した後に次の文字の判定に行かない
-    あ....この関数内でhash map初期化してるからやん
-    - startが押された時にスペルと画像pathのJSONを読み込み、keyをカウントするためのhash mapを作成
+    - typeし終えたらboolではなく画像のパスを返すようにする
     - 全てのスペルが押されたら、画像を表示
     - フロント側からの、画像/文字列のCRUDの処理
     - コントロールセンターにメニューを追加する [https://zenn.dev/aidemy/articles/8d8e406967d386](https://zenn.dev/aidemy/articles/8d8e406967d386)
