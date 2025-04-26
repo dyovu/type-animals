@@ -6,6 +6,7 @@ mod get_directories;
 mod config;
 use crate::config::json_data;
 mod count_keys;
+mod display_images;
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
