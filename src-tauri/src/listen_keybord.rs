@@ -9,7 +9,7 @@ use crate::count_keys::{count_keys, check_key};
 #[tauri::command]
 pub fn start_listening() {
     // /bin/にキーボードの位置取得のバイナリクレートを入れる
-    let listen_process_path: &str = "bin/listen-keytype";
+    let listen_process_path: &str = "libs/listen-keytype";
 
     // プロセスが起動しているときは何もしない
     {
