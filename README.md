@@ -1,11 +1,10 @@
 ## 登録した動物のspellをtypeするとその動物の画像が表示される
 
 
-
 ## ToDo:
 - バック
-    - typeし終えたらboolではなく画像のパスを返すようにする
     - 全てのスペルが押されたら、画像を表示
+    - ファイル名を適切に変える
     - フロント側からの、画像/文字列のCRUDの処理
     - コントロールセンターにメニューを追加する [https://zenn.dev/aidemy/articles/8d8e406967d386](https://zenn.dev/aidemy/articles/8d8e406967d386)
     - エラーハンドリングでpanicさせない
