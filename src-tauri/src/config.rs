@@ -176,44 +176,46 @@ pub mod sdl{
         DisplayGif { path: String, duration: u64 },
         Quit,
     }
+
     
-    pub struct Textures<'a>{
-        textures: HashMap<u32, Texture<'a>>,
+    pub struct TextureCreators{
+        texture_creator: HashMap<u32, TextureCreator<WindowContext>>,
     }
 
-    impl<'a> Textures<'a>{
+    impl TextureCreators{
         pub fn new() -> Self {
-            Textures {
-                textures: HashMap::new(),
+            TextureCreators {
+                texture_creator: HashMap::new(),
             }
         }
 
-        pub fn load_texture(&mut self, next_id: u32, texture_creator: &'a TextureCreator<WindowContext>, path: String) -> Result<(), String> {
-            let texture = texture_creator.load_texture(path).unwrap();
-            self.textures.insert(next_id-1, texture);
-            Ok(())
+        pub fn add_texture_creator(&mut self, id: u32, new_tx: TextureCreator<WindowContext>) {
+            self.texture_creator.insert(id, new_tx);
         }
 
-        pub fn add_loaded_texture(&mut self, id: u32, texture: Texture<'a>) -> Result<(), String> {
-            self.textures.insert(id, texture);
-            Ok(())
+        pub fn load_texture(& self, id: u32, path: String) -> Result<Texture, String> {
+            let texture = self.texture_creator.get(&(id))
+                .unwrap()
+                .load_texture(path)
+                .map_err(|e| e.to_string())?;
+            Ok(texture)
         }
     }
     
 
-    pub struct GifWindow {
+    pub struct GifWindow <'a>{
         window: Window,
         canvas: sdl2::render::Canvas<Window>,
-        texture_creator: TextureCreator<WindowContext>,
+        texture: Option<Texture<'a>>,
         created_at: Instant,
         duration: Duration,
     }
     
-    impl GifWindow {
+    impl<'a> GifWindow<'a>{
         pub fn new(
             video_subsystem: &sdl2::VideoSubsystem,
             duration_secs: u64,
-        ) -> Result<Self, String> {
+        ) -> Result<(Self,TextureCreator<WindowContext>) , String> {
             // まずウィンドウを作成
             let window = video_subsystem
                 .window("gif", 0, 0) 
@@ -233,18 +235,23 @@ pub mod sdl{
             // 透過設定
             canvas.set_blend_mode(BlendMode::Blend);
             
-            Ok(GifWindow {
+            Ok((GifWindow {
                 window: canvas.window_mut().clone(),
                 canvas,
-                texture_creator,
+                texture: None,
                 created_at: Instant::now(),
                 duration: Duration::from_secs(duration_secs),
-            })
+            }, texture_creator))
         }
         
-        fn render(&mut self, texture: &Texture) -> Result<(), String> {
+        fn render(&mut self) -> Result<(), String> {
+            // let texture: Texture = self.texture.take().expect("Texture not set");
             self.canvas.clear();
-            self.canvas.copy(texture, None, None)?;
+            if let Some(ref texture) = self.texture {
+                self.canvas.copy(texture, None, None)?;
+            } else {
+                return Err("Texture not set".to_string());
+            }
             self.canvas.present();
             Ok(())
         }
@@ -254,15 +261,14 @@ pub mod sdl{
         }
     }
     
-    // GifManagerはダミーウィンドウを持たず、各GifWindowが独自のtexture_creatorを管理
-    pub struct GifManager {
+
+    pub struct GifManager<'a> {
         video_subsystem: sdl2::VideoSubsystem,
-        gif_windows: HashMap<u32, GifWindow>,
+        gif_windows: HashMap<u32, GifWindow<'a>>,
         next_id: u32,
-        // _phantom: std::marker::PhantomData<&'a ()>,
     }
     
-    impl GifManager {
+    impl<'a> GifManager<'a> {
         pub fn new(sdl_context: &sdl2::Sdl) -> Result<Self, String> {
             let video_subsystem = sdl_context.video()?;
             
@@ -273,8 +279,8 @@ pub mod sdl{
             })
         }
     
-        pub fn add_gif(&mut self, duration_secs: u64) -> Result<u32, String> {
-            let gif_window = GifWindow::new(
+        pub fn add_gif(&mut self, duration_secs: u64, texture_creators: &mut TextureCreators) -> Result<u32, String> {
+            let (gif_window, new_tx) = GifWindow::new(
                 &self.video_subsystem,
                 duration_secs,
             )?;
@@ -282,60 +288,35 @@ pub mod sdl{
             let id = self.next_id;
             self.next_id += 1;
             self.gif_windows.insert(id, gif_window);
+            texture_creators.add_texture_creator(id, new_tx);
             Ok(id)
         }
-        
-        pub fn get_texture_creator(& self) -> (u32, &TextureCreator<WindowContext>) {
-            let id = self.next_id - 1;
-            let window: & GifWindow = self.gif_windows.get(&id).unwrap();
-            let texture_creator: &TextureCreator<WindowContext>  = &window.texture_creator;
-            (id, &texture_creator)
-        }
-
-
-
-        pub fn get_texture_info(&self) -> (u32, /* 必要な情報 */) {
-            (self.next_id - 1, /* 必要な情報 */)
-        }
-        
-        // TextureCreatorへのアクセスを提供するメソッド
-        pub fn with_texture_creator<F, R>(&self, id: u32, f: F) -> Result<R, String>
-        where
-            F: FnOnce(&TextureCreator<WindowContext>) -> R,
-        {
-            if let Some(window) = self.gif_windows.get(&id) {
-                Ok(f(&window.texture_creator))
-            } else {
-                Err("Window not found".to_string())
-            }
-        }
-
-
 
 
         // 最新のものだけ変更巣売るように変えたほうがいいかも
-        pub fn update_window_position(&mut self, textures: &Textures) -> Result<(), String> {
-            for (id, window) in &mut self.gif_windows {
-                let texture = textures.textures.get(id).unwrap();
-                let query = texture.query();
-                
-                // ランダムな位置を設定
-                let mut rng = rand::thread_rng();
-                let screen_width = 1920; // 画面サイズは適宜調整
-                let screen_height = 1080;
-                
-                let x = rng.gen_range(0..screen_width - query.width);
-                let y = rng.gen_range(0..screen_height - query.height);
-                
-                window.window.set_position(
-                    WindowPos::Positioned(x as i32), 
-                    WindowPos::Positioned(y as i32)
-                );
-            }
+        pub fn update_window_position(&mut self, id: u32, texture: Texture<'a>) -> Result<(), String> {
+            let gif_window = &mut self.gif_windows.get_mut(&id).unwrap();
+            gif_window.texture = Some(texture);
+            let texture_now = gif_window.texture.as_ref().unwrap(); 
+            let query = texture_now.query();
+            
+            // ランダムな位置を設定
+            let mut rng = rand::thread_rng();
+            let screen_width = 1920; // 画面サイズは適宜調整
+            let screen_height = 1080;
+            
+            let x = rng.gen_range(0..screen_width - query.width);
+            let y = rng.gen_range(0..screen_height - query.height);
+            
+            gif_window.window.set_position(
+                WindowPos::Positioned(x as i32), 
+                WindowPos::Positioned(y as i32)
+            );
+
             Ok(())
         }
         
-        pub fn update(&mut self, textures: &mut Textures) {
+        pub fn update(&mut self, texture_creators: &mut TextureCreators) {
             let mut expired_ids = Vec::new();
             
             // 期限切れのGIFを特定
@@ -348,13 +329,12 @@ pub mod sdl{
             // 期限切れのGIFを削除
             for id in expired_ids {
                 self.gif_windows.remove(&id);
-                textures.textures.remove(&id);
+                texture_creators.texture_creator.remove(&id);
             }
             
             // 残りのGIFをレンダリング
             for (_, window) in &mut self.gif_windows {
-                let texture = textures.textures.get(&(self.next_id - 1)).unwrap();
-                if let Err(e) = window.render(texture) {
+                if let Err(e) = window.render() {
                     eprintln!("Error rendering GIF: {}", e);
                 }
             }
@@ -365,234 +345,3 @@ pub mod sdl{
         }
     }
 }
-
-
-
-
-
-
-
-
-
-/*
-======================================================
-======================================================
-======================================================
-
-*/
-
-
-
-// pub mod sdl_v2{
-//     use super::*;
-//     use rand::Rng;
-//     use std::time::Instant;
-//     use std::time::Duration;
-//     use std::sync::mpsc::Sender;
-
-//     use sdl2::Sdl;
-//     use sdl2::video::{WindowContext, Window,WindowPos};
-//     use sdl2::image::{InitFlag, Sdl2ImageContext, LoadTexture};
-//     use sdl2::render::{Texture, TextureCreator, BlendMode};
-//     use sdl2::event::Event;
-//     use sdl2::keyboard::Keycode;
-
-
-
-//     pub struct SdlContext {
-//         pub _context: Sdl,
-//         pub _image_context: Sdl2ImageContext,
-//         pub event_pump: sdl2::EventPump,
-//     }
-    
-//     impl SdlContext {
-//         pub fn init() -> Result<Self, String> {
-//             let sdl_context = sdl2::init()?;
-//             let image_context = sdl2::image::init(InitFlag::PNG | InitFlag::JPG)?;
-//             let event_pump = sdl_context.event_pump()?;
-            
-//             Ok(SdlContext {
-//                 _context: sdl_context,
-//                 _image_context: image_context,
-//                 event_pump,
-//             })
-//         }
-
-//         pub fn event_pump(&mut self, sender: Sender<Message>) -> bool {
-//             for event in self.event_pump.poll_iter() {
-//                 match event {
-//                     Event::Quit { .. } => {
-//                         sender.send(Message::Quit).unwrap();
-//                         return false;
-//                     },
-//                     Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-//                         sender.send(Message::Quit).unwrap();
-//                         return false;
-//                     },
-//                     _ => {}
-//                 }
-//             }
-//             return true
-//         }
-//     }
-
-
-
-//     pub enum Message {
-//         DisplayGif { path: String, duration: u64 },
-//         Quit,
-//     }
-
-//     pub struct GifWindow<'a> {
-//         window: Window,
-//         canvas: sdl2::render::Canvas<Window>,
-//         texture_creator: &'a TextureCreator<WindowContext>,
-//         texture: Texture<'a>,
-//         created_at: Instant,
-//         duration: Duration,
-//     }
-    
-//     impl<'a> GifWindow<'a> {
-//         pub fn new(
-//             video_subsystem: &sdl2::VideoSubsystem,
-//             texture_creator: &'a TextureCreator<WindowContext>,
-//             path: String,
-//             duration_secs: u64,
-//         ) -> Result<Self, String> {
-//             // テクスチャの読み込み
-//             let texture = texture_creator.load_texture(path)?;
-//             let query = texture.query();
-            
-//             // ランダムな位置を設定
-//             let mut rng = rand::thread_rng();
-//             let screen_width = 1920; // 画面サイズは適宜調整
-//             let screen_height = 1080;
-            
-//             let x = rng.gen_range(0..screen_width - query.width);
-//             let y = rng.gen_range(0..screen_height - query.height);
-            
-//             // 透過ウィンドウの作成
-//             let mut window = video_subsystem
-//                 .window("gif", query.width, query.height)
-//                 .position_centered()
-//                 .borderless()
-//                 .always_on_top()
-//                 .build()
-//                 .map_err(|e| e.to_string())?;
-
-
-//             window.set_position(
-//                 WindowPos::Positioned(x as i32), 
-//                 WindowPos::Positioned(y as i32)
-//             );
-            
-//             let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-            
-//             // 透過設定
-//             canvas.set_blend_mode(BlendMode::Blend);
-            
-//             Ok(GifWindow {
-//                 window: canvas.window_mut().clone(),
-//                 canvas,
-//                 texture,
-//                 created_at: Instant::now(),
-//                 duration: Duration::from_secs(duration_secs),
-//             })
-//         }
-        
-//         fn render(&mut self) -> Result<(), String> {
-//             self.canvas.clear();
-//             self.canvas.copy(&self.texture, None, None)?;
-//             self.canvas.present();
-//             Ok(())
-//         }
-
-//         fn is_expired(&self) -> bool {
-//             Instant::now().duration_since(self.created_at) > self.duration
-//         }
-//     }
-
-
-//     // ダミーのウィンドウを作成して、GIFを表示するウィンドウを管理する
-//     pub struct GifManager<'a> {
-//         video_subsystem: sdl2::VideoSubsystem,
-//         texture_creator: Arc<TextureCreator<WindowContext>>,
-//         gif_windows: HashMap<u32, GifWindow<'a>>,
-//         next_id: u32,
-//     }
-    
-//     impl<'a> GifManager<'a> {
-//         pub fn new(sdl_context: &sdl2::Sdl) -> Result<Self, String> {
-//             let video_subsystem = sdl_context.video()?;
-            
-//             // ダミーウィンドウを作成してテクスチャクリエーターを取得
-//             let dummy_window = video_subsystem.window("dummy", 1, 1)
-//                 .hidden()
-//                 .build()
-//                 .map_err(|e| e.to_string())?;
-            
-//             let canvas = dummy_window.into_canvas().build().map_err(|e| e.to_string())?;
-//             let texture_creator = canvas.texture_creator();
-//             let texture_creator = Arc::new(texture_creator);
-            
-//             Ok(GifManager {
-//                 video_subsystem,
-//                 texture_creator,
-//                 gif_windows: HashMap::new(),
-//                 next_id: 0,
-//             })
-//         }
-
-//         // 
-//         pub fn add_gif(&mut self, path: String, duration_secs: u64) -> Result<u32, String> {
-
-//             // let texture_creator_ref: &'a TextureCreator<WindowContext> = unsafe {
-//             //     // 安全ではありませんが、Arcで包まれたTextureCreatorの参照を'aライフタイムにキャスト
-//             //     std::mem::transmute::<&TextureCreator<WindowContext>, &'a TextureCreator<WindowContext>>(
-//             //         &self.texture_creator
-//             //     )
-//             // };
-
-//             let gif_window = GifWindow::new(
-//                 &self.video_subsystem,
-//                 &self.texture_creator,
-//                 // texture_creator_ref,
-//                 path,
-//                 duration_secs,
-//             )?;
-            
-//             let id = self.next_id;
-//             self.next_id += 1;
-//             self.gif_windows.insert(id, gif_window);
-            
-//             Ok(id)
-//         }
-        
-//         pub fn update(&mut self) {
-//             let mut expired_ids = Vec::new();
-            
-//             // 期限切れのGIFを特定
-//             for (id, window) in &self.gif_windows {
-//                 if window.is_expired() {
-//                     expired_ids.push(*id);
-//                 }
-//             }
-            
-//             // 期限切れのGIFを削除
-//             for id in expired_ids {
-//                 self.gif_windows.remove(&id);
-//             }
-            
-//             // 残りのGIFをレンダリング
-//             for (_, window) in &mut self.gif_windows {
-//                 if let Err(e) = window.render() {
-//                     eprintln!("Error rendering GIF: {}", e);
-//                 }
-//             }
-//         }
-        
-//         pub fn is_empty(&self) -> bool {
-//             self.gif_windows.is_empty()
-//         }
-//     }
-// }

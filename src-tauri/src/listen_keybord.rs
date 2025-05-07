@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::config::APP_STATE;
 use crate::config:: key_counts::{initialize_key_count, reset_key_count};
-use crate::config::sdl::{SdlContext, Message, GifManager, Textures,};
+use crate::config::sdl::{SdlContext, Message, GifManager, TextureCreators,};
 use crate::process_key_events::listening_key;
 
 
@@ -69,7 +69,7 @@ pub fn start_process() {
             return;
         }
     };
-    let mut textures: Textures = Textures::new();
+    let mut texture_creators: TextureCreators = TextureCreators::new();
 
     'running: loop {
         if !sdl_context.event_pump(sender.clone()) {
@@ -78,34 +78,29 @@ pub fn start_process() {
 
         if let Ok(message) = receiver.try_recv() {
             match message {
-                Message::DisplayGif { path, duration } => {
-                    {
-                        if let Err(e) = gif_manager.add_gif(duration) {
-                            eprintln!("Failed to display GIF: {}", e);
+                Message::DisplayGif {path, duration } => {
+                    let id :u32 = match gif_manager.add_gif(duration, &mut texture_creators) {
+                        Ok(id) => id,
+                        Err(e) => {
+                            eprintln!("Failed to add gif: {}", e);
+                            continue
                         }
-                    } // ここで最初の可変借用が終了
+                    };
 
-                    let (next_id, texture_creator) = gif_manager.get_texture_creator();
+                    let texture = texture_creators.load_texture(id.clone(), path).unwrap();
 
-                    
-                    // テクスチャをロード
-                    if let Err(e) = textures.load_texture(next_id, texture_creator, path) {
-                        eprintln!("Failed to load texture: {}", e);
+
+                    if let Err(e) = gif_manager.update_window_position(id.clone(), texture){
+                        eprintln!("Failed to update window position: {}", e);
+                        continue
                     }
 
-
-                    // 新しいスコープで可変借用
-                    {
-                        if let Err(e) = gif_manager.update_window_position(&textures){
-                            eprintln!("Failed to update window position: {}", e);
-                        }
-                    }
                 },
                 Message::Quit => break 'running,
             }
         }
 
-        // gif_manager.update(textures);
+        gif_manager.update(&mut texture_creators);
 
         thread::sleep(Duration::from_millis(20));
     }
