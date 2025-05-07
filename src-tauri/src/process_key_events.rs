@@ -29,7 +29,7 @@ fn process_key_events(reader: BufReader<impl Read>, tx: Sender<Message>) {
                 // メインスレッドに画像表示を依頼
                 println!("path: {:?}", path);
                 let _ = tx.send(
-                    Message::DisplayGif {
+                    Message::DisplayImage {
                         path: path.into_os_string().into_string().unwrap(),
                         duration: 3,
                     }
