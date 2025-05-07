@@ -1,13 +1,19 @@
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read, ErrorKind};
 use std::process::{Command, Stdio};
 use std::thread;
+use std::sync::mpsc::{channel, Sender, Receiver};
+use std::time::Duration;
+
 
 use crate::config::APP_STATE;
-use crate::config::key_counts::{initialize_key_count, reset_key_count};
-use crate::count_keys::{count_keys, check_key};
+use crate::config:: key_counts::{initialize_key_count, reset_key_count};
+use crate::config::sdl::{SdlContext, Message, GifManager, Textures,};
+use crate::process_key_events::listening_key;
+
+
 
 #[tauri::command]
-pub fn start_listening() {
+pub fn start_process() {
     // /bin/にキーボードの位置取得のバイナリクレートを入れる
     let listen_process_path: &str = "libs/listen-keytype";
 
@@ -23,34 +29,16 @@ pub fn start_listening() {
     // key_countをウントをリセット
     initialize_key_count();
 
+    // キーボードの取得と画像表示のためのスレッド間通信を行うためのチャネル
+    let (sender, receiver): (Sender<Message>, Receiver<Message>) = channel();
+
+
     // 新しいプロセスを起動
     let mut listener_process = Command::new(listen_process_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .expect("failed to execute listener process");
-    
-    println!("process started successfully");
-
-    // 標準出力からkeyを取得して、判定→描画の処理を行う
-    if let Some(stdout) = listener_process.stdout.take() { // '=' の返り値がSome()型ならその値をstdoutにいれるということ、
-        let reader = BufReader::new(stdout);
-        thread::spawn(move||{
-            for line in reader.lines() {
-                if let Ok(line) = line {
-                    println!("pressed key of {}", line);
-
-                    if let Some(key) = check_key(line.clone()){
-                        if let Some(path) = count_keys(key){
-                            /*
-                                画像描画の処理を追加
-                             */
-                        }
-                    }
-                }
-            }
-        });
-    }
 
     // エラーが出たらエラーを表示
     if let Some(stderr) = listener_process.stderr.take() {
@@ -64,11 +52,67 @@ pub fn start_listening() {
         });
     }
 
-    // `listener_process` を AppState に格納
+    println!("process started successfully");
+    // listener_processの標準出力を読み取る
+    listening_key(&mut listener_process, sender.clone());
+
     let mut state = APP_STATE.get_listener_process().lock().expect("Failed to lock mutex");
     *state = Some(listener_process);
-}
 
+
+    // SDL2の初期化
+    let mut sdl_context:SdlContext = SdlContext::init().expect("Failed to initialize SDL2");
+    let mut gif_manager: GifManager = match GifManager::new(&sdl_context._context) {
+        Ok(gif_manager) => gif_manager,
+        Err(e) => {
+            eprintln!("Failed to create GifManager: {}", e);
+            return;
+        }
+    };
+    let mut textures: Textures = Textures::new();
+
+    'running: loop {
+        if !sdl_context.event_pump(sender.clone()) {
+            break 'running;
+        }
+
+        if let Ok(message) = receiver.try_recv() {
+            match message {
+                Message::DisplayGif { path, duration } => {
+                    {
+                        if let Err(e) = gif_manager.add_gif(duration) {
+                            eprintln!("Failed to display GIF: {}", e);
+                        }
+                    } // ここで最初の可変借用が終了
+
+                    let (next_id, texture_creator) = gif_manager.get_texture_creator();
+
+                    
+                    // テクスチャをロード
+                    if let Err(e) = textures.load_texture(next_id, texture_creator, path) {
+                        eprintln!("Failed to load texture: {}", e);
+                    }
+
+
+                    // 新しいスコープで可変借用
+                    {
+                        if let Err(e) = gif_manager.update_window_position(&textures){
+                            eprintln!("Failed to update window position: {}", e);
+                        }
+                    }
+                },
+                Message::Quit => break 'running,
+            }
+        }
+
+        // gif_manager.update(textures);
+
+        thread::sleep(Duration::from_millis(20));
+    }
+
+    println!("process finished successfully");
+
+}
 
 
 

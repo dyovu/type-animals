@@ -9,7 +9,7 @@ pub fn count_keys(typed_key: char) -> Option<PathBuf> {
 
     for (key, dq) in key_counts.iter_mut() {
         if let Some(&front) = dq.front() {
-            println!("'{}' の先頭は '{}' です", key, front);
+            // println!("'{}' の先頭は '{}' です", key, front);
             if typed_key == front {
                 let finished_typed:bool = pop_and_refill(key);
                 if finished_typed{
@@ -25,8 +25,6 @@ pub fn count_keys(typed_key: char) -> Option<PathBuf> {
     }
     return None;
 }
-
-
 
 
 pub fn check_key(key: String) -> Option<char>{

@@ -24,7 +24,7 @@ fn set_dynamic_libraries_path() {
 
 fn main() {
     // ライブラリのパスを設定、SDLのバイナリをプロジェクト内に入れてそれを実行するため
-    // set_dynamic_libraries_path();
+    set_dynamic_libraries_path();
 
     type_animals_lib::run()
 }
