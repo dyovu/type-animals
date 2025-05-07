@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::config::APP_STATE;
 use crate::config:: key_counts::{initialize_key_count, reset_key_count};
-use crate::config::sdl::{SdlContext, Message, GifManager, TextureCreators,};
+use crate::config::sdl::{SdlContext, Message, ImageManager};
 use crate::process_key_events::listening_key;
 
 
@@ -62,14 +62,13 @@ pub fn start_process() {
 
     // SDL2の初期化
     let mut sdl_context:SdlContext = SdlContext::init().expect("Failed to initialize SDL2");
-    let mut gif_manager: GifManager = match GifManager::new(&sdl_context._context) {
-        Ok(gif_manager) => gif_manager,
+    let mut image_manager: ImageManager = match ImageManager::new(&sdl_context._context) {
+        Ok(image_manager) => image_manager,
         Err(e) => {
-            eprintln!("Failed to create GifManager: {}", e);
+            eprintln!("Failed to create imageManager: {}", e);
             return;
         }
     };
-    let mut texture_creators: TextureCreators = TextureCreators::new();
 
     'running: loop {
         if !sdl_context.event_pump(sender.clone()) {
@@ -78,19 +77,17 @@ pub fn start_process() {
 
         if let Ok(message) = receiver.try_recv() {
             match message {
-                Message::DisplayGif {path, duration } => {
-                    let id :u32 = match gif_manager.add_gif(duration, &mut texture_creators) {
+                Message::DisplayImage {path, duration } => {
+                    let id :u32 = match image_manager.add_image(duration, path) {
                         Ok(id) => id,
                         Err(e) => {
-                            eprintln!("Failed to add gif: {}", e);
+                            eprintln!("Failed to add image: {}", e);
                             continue
                         }
                     };
 
-                    let texture = texture_creators.load_texture(id.clone(), path).unwrap();
 
-
-                    if let Err(e) = gif_manager.update_window_position(id.clone(), texture){
+                    if let Err(e) = image_manager.render_images(){
                         eprintln!("Failed to update window position: {}", e);
                         continue
                     }
@@ -100,7 +97,7 @@ pub fn start_process() {
             }
         }
 
-        gif_manager.update(&mut texture_creators);
+        image_manager.update();
 
         thread::sleep(Duration::from_millis(20));
     }

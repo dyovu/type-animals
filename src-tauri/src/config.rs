@@ -123,6 +123,7 @@ pub mod json_data{
 pub mod sdl{
     use super::*;
     use rand::Rng;
+    use sdl2::image;
     use std::time::Instant;
     use std::time::Duration;
     use std::sync::mpsc::Sender;
@@ -173,52 +174,29 @@ pub mod sdl{
     }
 
     pub enum Message {
-        DisplayGif { path: String, duration: u64 },
+        DisplayImage { path: String, duration: u64 },
         Quit,
     }
 
     
-    pub struct TextureCreators{
-        texture_creator: HashMap<u32, TextureCreator<WindowContext>>,
-    }
 
-    impl TextureCreators{
-        pub fn new() -> Self {
-            TextureCreators {
-                texture_creator: HashMap::new(),
-            }
-        }
-
-        pub fn add_texture_creator(&mut self, id: u32, new_tx: TextureCreator<WindowContext>) {
-            self.texture_creator.insert(id, new_tx);
-        }
-
-        pub fn load_texture(& self, id: u32, path: String) -> Result<Texture, String> {
-            let texture = self.texture_creator.get(&(id))
-                .unwrap()
-                .load_texture(path)
-                .map_err(|e| e.to_string())?;
-            Ok(texture)
-        }
-    }
-    
-
-    pub struct GifWindow <'a>{
+    pub struct ImageWindow {
         window: Window,
         canvas: sdl2::render::Canvas<Window>,
-        texture: Option<Texture<'a>>,
+        image_path: String,
         created_at: Instant,
         duration: Duration,
     }
     
-    impl<'a> GifWindow<'a>{
+    impl ImageWindow{
         pub fn new(
             video_subsystem: &sdl2::VideoSubsystem,
             duration_secs: u64,
-        ) -> Result<(Self,TextureCreator<WindowContext>) , String> {
+            image_path: String,
+        ) -> Result<Self , String> {
             // まずウィンドウを作成
             let window = video_subsystem
-                .window("gif", 0, 0) 
+                .window("image", 0, 0) 
                 .position_centered()
                 .borderless()
                 .always_on_top()
@@ -228,30 +206,45 @@ pub mod sdl{
             // canvasを作成
             let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
             
-            // texture_creatorを取得
-            let texture_creator = canvas.texture_creator();
-            
             
             // 透過設定
             canvas.set_blend_mode(BlendMode::Blend);
             
-            Ok((GifWindow {
+            Ok(ImageWindow {
                 window: canvas.window_mut().clone(),
                 canvas,
-                texture: None,
+                image_path: image_path,
                 created_at: Instant::now(),
                 duration: Duration::from_secs(duration_secs),
-            }, texture_creator))
+            })
         }
         
         fn render(&mut self) -> Result<(), String> {
-            // let texture: Texture = self.texture.take().expect("Texture not set");
+            let texture_creator = self.canvas.texture_creator();
+            let image_path = PathBuf::from(&self.image_path);
+            let texture = texture_creator.load_texture(image_path)?;
+            
+            // テクスチャのサイズを取得
+            let query = texture.query();
+            
+            // ウィンドウのサイズを設定
+            self.canvas.window_mut().set_size(query.width, query.height);
+            
+            // ランダムな位置を設定
+            let mut rng = rand::thread_rng();
+            let screen_width = 1920;
+            let screen_height = 1080;
+            let x = rng.gen_range(0..screen_width - query.width);
+            let y = rng.gen_range(0..screen_height - query.height);
+            
+            self.window.set_position(
+                WindowPos::Positioned(x as i32),
+                WindowPos::Positioned(y as i32)
+            );
+            
+            // 描画
             self.canvas.clear();
-            if let Some(ref texture) = self.texture {
-                self.canvas.copy(texture, None, None)?;
-            } else {
-                return Err("Texture not set".to_string());
-            }
+            self.canvas.copy(&texture, None, None)?;
             self.canvas.present();
             Ok(())
         }
@@ -262,86 +255,65 @@ pub mod sdl{
     }
     
 
-    pub struct GifManager<'a> {
+    pub struct ImageManager {
         video_subsystem: sdl2::VideoSubsystem,
-        gif_windows: HashMap<u32, GifWindow<'a>>,
+        image_windows: HashMap<u32, ImageWindow>,
         next_id: u32,
     }
     
-    impl<'a> GifManager<'a> {
+    impl ImageManager {
         pub fn new(sdl_context: &sdl2::Sdl) -> Result<Self, String> {
             let video_subsystem = sdl_context.video()?;
             
-            Ok(GifManager {
+            Ok(ImageManager {
                 video_subsystem,
-                gif_windows: HashMap::new(),
+                image_windows: HashMap::new(),
                 next_id: 0,
             })
         }
     
-        pub fn add_gif(&mut self, duration_secs: u64, texture_creators: &mut TextureCreators) -> Result<u32, String> {
-            let (gif_window, new_tx) = GifWindow::new(
+        pub fn add_image(&mut self, duration_secs: u64, image_path: String) -> Result<u32, String> {
+            let image_window = ImageWindow::new(
                 &self.video_subsystem,
                 duration_secs,
+                image_path,
             )?;
             
             let id = self.next_id;
             self.next_id += 1;
-            self.gif_windows.insert(id, gif_window);
-            texture_creators.add_texture_creator(id, new_tx);
+            self.image_windows.insert(id, image_window);
             Ok(id)
         }
 
-
-        // 最新のものだけ変更巣売るように変えたほうがいいかも
-        pub fn update_window_position(&mut self, id: u32, texture: Texture<'a>) -> Result<(), String> {
-            let gif_window = &mut self.gif_windows.get_mut(&id).unwrap();
-            gif_window.texture = Some(texture);
-            let texture_now = gif_window.texture.as_ref().unwrap(); 
-            let query = texture_now.query();
-            
-            // ランダムな位置を設定
-            let mut rng = rand::thread_rng();
-            let screen_width = 1920; // 画面サイズは適宜調整
-            let screen_height = 1080;
-            
-            let x = rng.gen_range(0..screen_width - query.width);
-            let y = rng.gen_range(0..screen_height - query.height);
-            
-            gif_window.window.set_position(
-                WindowPos::Positioned(x as i32), 
-                WindowPos::Positioned(y as i32)
-            );
-
-            Ok(())
-        }
         
-        pub fn update(&mut self, texture_creators: &mut TextureCreators) {
+        pub fn update(&mut self) {
             let mut expired_ids = Vec::new();
             
-            // 期限切れのGIFを特定
-            for (id, window) in &self.gif_windows {
+            // 期限切れのimageを特定
+            for (id, window) in &self.image_windows {
                 if window.is_expired() {
                     expired_ids.push(*id);
                 }
             }
             
-            // 期限切れのGIFを削除
+            // 期限切れのimageを削除
             for id in expired_ids {
-                self.gif_windows.remove(&id);
-                texture_creators.texture_creator.remove(&id);
+                self.image_windows.remove(&id);
             }
-            
-            // 残りのGIFをレンダリング
-            for (_, window) in &mut self.gif_windows {
+        }
+
+        pub fn render_images(&mut self) -> Result<(), String> {
+            for (_, window) in &mut self.image_windows {
                 if let Err(e) = window.render() {
-                    eprintln!("Error rendering GIF: {}", e);
+                    eprintln!("Error rendering image: {}", e);
+                    return Err(e);
                 }
             }
+            Ok(())
         }
         
         pub fn is_empty(&self) -> bool {
-            self.gif_windows.is_empty()
+            self.image_windows.is_empty()
         }
     }
 }
