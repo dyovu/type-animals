@@ -1,7 +1,7 @@
 use tauri::tray::TrayIconBuilder;
 
 
-mod listen_keybord;
+mod start_process;
 mod get_directories;
 mod config;
 mod count_keys;
@@ -22,7 +22,7 @@ pub fn run() {
         })
         // .manage()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![listen_keybord::start_process, listen_keybord::stop_listening])
+        .invoke_handler(tauri::generate_handler![start_process::start_process, start_process::stop_listening])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

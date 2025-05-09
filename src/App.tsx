@@ -6,8 +6,6 @@ import SettingMenue from "./components/SettingMenue.tsx";
 import "./App.css";
 
 
-// 三項演算子でstart画面とsetting画面を分ける
-// setting画面の方は、全てをまとめてcomponentにする
 function App() {
   const [isSetting, setIsSetting] = useState(true);
 
