@@ -12,6 +12,7 @@ function App() {
   return (
     <main className="container">
       <h3>Type anymals</h3>
+
       {isSetting ? (
         <div className="button-container">
           <button onClick={() => invoke('start_process')}> Start </button>
@@ -21,7 +22,6 @@ function App() {
       ):(
         // ここに動物のリストを表示するコンポーネントを持ってくる
         <div>
-          <button onClick={() => invoke('my_custom_command', { arg: 'Button 2' })}> Save</button>
           <SettingMenue />
         </div>
       )}
