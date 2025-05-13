@@ -46,6 +46,34 @@ pub mod app_paths {
 }
 
 
+
+
+pub mod json_data{
+    use super::*;
+
+    // アプリケーションのフォルダに保存しているjsonファイルのデータを格納する
+    pub static JSON_DATA: Lazy<Arc<Mutex<HashMap<String, String>>>> = Lazy::new(||Arc::new(Mutex::new(HashMap::new())));
+
+    // jsonファイル作成時(アプリケーション起動時)と値を変更、追加した際に呼び出す
+    pub fn initialize_json_data() {
+        let json_path: PathBuf = app_paths::get_json_path();
+
+        let mut data = JSON_DATA.lock().unwrap();
+        let json_str = std::fs::read_to_string(json_path).expect("JSONファイルの読み込みに失敗しました");
+        *data = serde_json::from_str(&json_str).expect("JSONのパースに失敗しました");
+
+        println!("JSONデータの初期化完了: {:?}", data);
+    }
+
+    #[tauri::command]
+    pub fn get_json_data() -> HashMap<String, String> {
+        let data = JSON_DATA.lock().unwrap();
+        data.clone()
+    }
+}
+
+
+
 // start_processが呼ばれたらカウントをリセットして、initialize_key_countを呼び出す
 pub mod key_counts{
     use super::*;
@@ -90,32 +118,6 @@ pub mod key_counts{
         return false;
     }
 }
-
-
-
-pub mod json_data{
-    use super::*;
-
-    // アプリケーションのフォルダに保存しているjsonファイルのデータを格納する
-    pub static JSON_DATA: Lazy<Arc<Mutex<HashMap<String, String>>>> = Lazy::new(||Arc::new(Mutex::new(HashMap::new())));
-
-    // jsonファイル作成時(アプリケーション起動時)と値を変更、追加した際に呼び出す
-    pub fn initialize_json_data() {
-        let json_path: PathBuf = app_paths::get_json_path();
-
-        let mut data = JSON_DATA.lock().unwrap();
-        let json_str = std::fs::read_to_string(json_path).expect("JSONファイルの読み込みに失敗しました");
-        *data = serde_json::from_str(&json_str).expect("JSONのパースに失敗しました");
-
-        println!("JSONデータの初期化完了: {:?}", data);
-    }
-
-    pub fn get_json_data() -> HashMap<String, String> {
-        let data = JSON_DATA.lock().unwrap();
-        data.clone()
-    }
-}
-
 
 
 
