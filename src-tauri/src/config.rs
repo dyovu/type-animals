@@ -254,7 +254,7 @@ pub mod sdl{
             let query = texture.query();
             
             // ウィンドウのサイズを設定
-            self.canvas.window_mut().set_size(query.width, query.height);
+            self.canvas.window_mut().set_size(query.width, query.height).unwrap();
             
             // ランダムな位置を設定
             let mut rng = rand::thread_rng();
@@ -328,18 +328,21 @@ pub mod sdl{
             }
         }
 
-        pub fn render_images(&mut self) -> Result<(), String> {
-            for (_, window) in &mut self.image_windows {
+        pub fn render_images(&mut self, id: &u32) -> Result<(), String> {
+            if let Some(window) = self.image_windows.get_mut(id){
                 if let Err(e) = window.render() {
                     eprintln!("Error rendering image: {}", e);
                     return Err(e);
                 }
-            }
+            }            
+            // for (_, window) in &mut self.image_windows {
+            //     if let Err(e) = window.render() {
+            //         eprintln!("Error rendering image: {}", e);
+            //         return Err(e);
+            //     }
+            // }
             Ok(())
         }
-        
-        pub fn is_empty(&self) -> bool {
-            self.image_windows.is_empty()
-        }
+    
     }
 }

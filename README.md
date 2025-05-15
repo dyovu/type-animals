@@ -3,10 +3,9 @@
 
 ## ToDo:
 - バック
-    - 新しく表示した画像のみ描画する、すでにある画像の描画位置を変えない
     - jsonの更新をする際に差分を取る
     - 画像の背景を透過する
-    - gifを表示できるように変更
+    - gifを表示できるように変更, sdlモジュールの中にgif_managerとか作る感じかな？
     - コントロールセンターにメニューを追加する [https://zenn.dev/aidemy/articles/8d8e406967d386](https://zenn.dev/aidemy/articles/8d8e406967d386)
     - 全体のファイル分け、特にconfigやget_directoriesの部分を直す
     - エラーハンドリングでpanicさせない
