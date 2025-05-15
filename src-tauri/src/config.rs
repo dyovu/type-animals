@@ -56,19 +56,43 @@ pub mod json_data{
 
     // jsonファイル作成時(アプリケーション起動時)と値を変更、追加した際に呼び出す
     pub fn initialize_json_data() {
-        let json_path: PathBuf = app_paths::get_json_path();
-
         let mut data = JSON_DATA.lock().unwrap();
-        let json_str = std::fs::read_to_string(json_path).expect("JSONファイルの読み込みに失敗しました");
-        *data = serde_json::from_str(&json_str).expect("JSONのパースに失敗しました");
+        *data = read_json_data();
 
         println!("JSONデータの初期化完了: {:?}", data);
     }
 
+    fn read_json_data()-> HashMap<String, String> {
+        let json_path: PathBuf = app_paths::get_json_path();
+        let json_str = std::fs::read_to_string(json_path).expect("JSONファイルの読み込みに失敗しました");
+        let data: HashMap<String, String> = serde_json::from_str(&json_str).expect("JSONのパースに失敗しました");
+        data
+    }
+
+    // 毎回jsonファイルをすべて変更するのはコスト的によくなさそうだから、現在のJSON_DATAと差分をとってそこのみ編集する形がいいかな？
+    fn update_json_data(json_data: HashMap<String, String>)  {
+        let json_path: PathBuf = app_paths::get_json_path();
+        let json_str = serde_json::to_string_pretty(&json_data).expect("JSONのシリアライズに失敗しました");
+        std::fs::write(json_path, json_str).expect("JSONファイルの書き込みに失敗しました");
+        let mut data = JSON_DATA.lock().unwrap();
+        *data = json_data.clone();
+        println!("JSONデータの更新完了: {:?}", data);
+    }
+
+
+
+    /*
+        // 以下フロント側から呼び出す関数
+    */
     #[tauri::command]
-    pub fn get_json_data() -> HashMap<String, String> {
-        let data = JSON_DATA.lock().unwrap();
+    pub fn fetch_json_data() -> HashMap<String, String> {
+        let data: std::sync::MutexGuard<'_, HashMap<String, String>> = JSON_DATA.lock().unwrap();
         data.clone()
+    }
+
+    #[tauri::command]
+    pub fn post_json_data(json_data: HashMap<String, String>) {
+        update_json_data(json_data.clone());
     }
 }
 
