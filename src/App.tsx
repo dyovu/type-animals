@@ -22,7 +22,7 @@ function App() {
       ):(
         // ここに動物のリストを表示するコンポーネントを持ってくる
         <div>
-          <SettingMenue />
+          <SettingMenue isSetting={isSetting} setIsSetting={setIsSetting}/>
         </div>
       )}
       
