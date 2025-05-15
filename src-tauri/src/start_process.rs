@@ -99,7 +99,7 @@ pub fn start_process() {
                             continue
                         }
                     };
-                    if let Err(e) = image_manager.render_images(){
+                    if let Err(e) = image_manager.render_images(&id){
                         eprintln!("Failed to update window position: {}", e);
                         continue
                     }
@@ -110,10 +110,11 @@ pub fn start_process() {
 
         image_manager.update();
 
-        // Tauriのメッセージキューを処理する機会を与えるために短いスリープを入れる
-        // これにより、stop_listening()が呼び出された時に処理される機会が生まれる
+        // ポーリング
+        // メッセージの受信と、停止リクエストが来ていないか確認する
         thread::sleep(Duration::from_millis(10));
     }
+
     
     // ループを抜けた後のクリーンアップ
     // stop_listening()が既に呼ばれている可能性があるため、ここでもプロセスを終了させる

@@ -46,6 +46,58 @@ pub mod app_paths {
 }
 
 
+
+
+pub mod json_data{
+    use super::*;
+
+    // アプリケーションのフォルダに保存しているjsonファイルのデータを格納する
+    pub static JSON_DATA: Lazy<Arc<Mutex<HashMap<String, String>>>> = Lazy::new(||Arc::new(Mutex::new(HashMap::new())));
+
+    // jsonファイル作成時(アプリケーション起動時)と値を変更、追加した際に呼び出す
+    pub fn initialize_json_data() {
+        let mut data = JSON_DATA.lock().unwrap();
+        *data = read_json_data();
+
+        println!("JSONデータの初期化完了: {:?}", data);
+    }
+
+    fn read_json_data()-> HashMap<String, String> {
+        let json_path: PathBuf = app_paths::get_json_path();
+        let json_str = std::fs::read_to_string(json_path).expect("JSONファイルの読み込みに失敗しました");
+        let data: HashMap<String, String> = serde_json::from_str(&json_str).expect("JSONのパースに失敗しました");
+        data
+    }
+
+    // 毎回jsonファイルをすべて変更するのはコスト的によくなさそうだから、現在のJSON_DATAと差分をとってそこのみ編集する形がいいかな？
+    fn update_json_data(json_data: HashMap<String, String>)  {
+        let json_path: PathBuf = app_paths::get_json_path();
+        let json_str = serde_json::to_string_pretty(&json_data).expect("JSONのシリアライズに失敗しました");
+        std::fs::write(json_path, json_str).expect("JSONファイルの書き込みに失敗しました");
+        let mut data = JSON_DATA.lock().unwrap();
+        *data = json_data.clone();
+        println!("JSONデータの更新完了: {:?}", data);
+    }
+
+
+
+    /*
+        // 以下フロント側から呼び出す関数
+    */
+    #[tauri::command]
+    pub fn fetch_json_data() -> HashMap<String, String> {
+        let data: std::sync::MutexGuard<'_, HashMap<String, String>> = JSON_DATA.lock().unwrap();
+        data.clone()
+    }
+
+    #[tauri::command]
+    pub fn post_json_data(json_data: HashMap<String, String>) {
+        update_json_data(json_data.clone());
+    }
+}
+
+
+
 // start_processが呼ばれたらカウントをリセットして、initialize_key_countを呼び出す
 pub mod key_counts{
     use super::*;
@@ -90,32 +142,6 @@ pub mod key_counts{
         return false;
     }
 }
-
-
-
-pub mod json_data{
-    use super::*;
-
-    // アプリケーションのフォルダに保存しているjsonファイルのデータを格納する
-    pub static JSON_DATA: Lazy<Arc<Mutex<HashMap<String, String>>>> = Lazy::new(||Arc::new(Mutex::new(HashMap::new())));
-
-    // jsonファイル作成時(アプリケーション起動時)と値を変更、追加した際に呼び出す
-    pub fn initialize_json_data() {
-        let json_path: PathBuf = app_paths::get_json_path();
-
-        let mut data = JSON_DATA.lock().unwrap();
-        let json_str = std::fs::read_to_string(json_path).expect("JSONファイルの読み込みに失敗しました");
-        *data = serde_json::from_str(&json_str).expect("JSONのパースに失敗しました");
-
-        println!("JSONデータの初期化完了: {:?}", data);
-    }
-
-    pub fn get_json_data() -> HashMap<String, String> {
-        let data = JSON_DATA.lock().unwrap();
-        data.clone()
-    }
-}
-
 
 
 
@@ -228,7 +254,7 @@ pub mod sdl{
             let query = texture.query();
             
             // ウィンドウのサイズを設定
-            self.canvas.window_mut().set_size(query.width, query.height);
+            self.canvas.window_mut().set_size(query.width, query.height).unwrap();
             
             // ランダムな位置を設定
             let mut rng = rand::thread_rng();
@@ -302,18 +328,21 @@ pub mod sdl{
             }
         }
 
-        pub fn render_images(&mut self) -> Result<(), String> {
-            for (_, window) in &mut self.image_windows {
+        pub fn render_images(&mut self, id: &u32) -> Result<(), String> {
+            if let Some(window) = self.image_windows.get_mut(id){
                 if let Err(e) = window.render() {
                     eprintln!("Error rendering image: {}", e);
                     return Err(e);
                 }
-            }
+            }            
+            // for (_, window) in &mut self.image_windows {
+            //     if let Err(e) = window.render() {
+            //         eprintln!("Error rendering image: {}", e);
+            //         return Err(e);
+            //     }
+            // }
             Ok(())
         }
-        
-        pub fn is_empty(&self) -> bool {
-            self.image_windows.is_empty()
-        }
+    
     }
 }

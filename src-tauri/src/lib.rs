@@ -22,7 +22,9 @@ pub fn run() {
         })
         // .manage()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![start_process::start_process, start_process::stop_listening])
+        .invoke_handler(tauri::generate_handler![start_process::start_process, start_process::stop_listening, config::json_data::fetch_json_data, config::json_data::post_json_data])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+
