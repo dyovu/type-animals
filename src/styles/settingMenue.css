@@ -1,0 +1,71 @@
+/* 全体レイアウト */
+.wrap {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 15px;
+}
+
+.top {
+  margin-bottom: 20px;
+}
+
+.main {
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+/* データリスト */
+.list {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.row {
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.content {
+  display: flex;
+  width: 80%;
+}
+
+.key {
+  font-weight: 600;
+  width: 30%;
+  color: #aaaaaa;
+}
+
+.val {
+  width: 70%;
+  padding-left: 10px;
+}
+
+/* ボタン - サイズ半分、暗い青色 */
+.btn {
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: 0.7rem; /* 文字サイズ半分 */
+  cursor: pointer;
+  background-color: #14396d; /* 暗い青 */
+  color: white;
+  border: none;
+  transition: background-color 0.2s;
+}
+
+.btn:hover {
+  background-color: #0d2d5a;
+}

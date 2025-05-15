@@ -1,21 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Dispatch, SetStateAction } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
+import "../styles/settingMenue.css";
+
 interface PathData {
+  // 任意の文字列をkeyとして持つ [key: string]
   [key: string]: string;
 }
 
-function App() {
+type isSettingProps = {
+    isSetting: boolean;
+    setIsSetting: Dispatch<SetStateAction<boolean>>;
+};
+
+function SettingMenue({ isSetting, setIsSetting }: isSettingProps) {
   const [data, setData] = useState<PathData>({});
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // ユニオン型、どちらかの方のみ受け付ける
   
   // バックエンドからデータを取得する関数
   const fetchData = async () => {
     try {
       setLoading(true);
-      // バックエンドからJSONデータを取得（Tauriのinvokeを使用）
-      const jsonData = await invoke<PathData>('get_json_data');
+      // invoke関数が返す値がPathData型であることを指定
+      const jsonData = await invoke<PathData>('fetch_json_data');
       setData(jsonData);
     } catch (err) {
       setError('データの取得に失敗しました: ' + String(err));
@@ -29,7 +37,8 @@ function App() {
   const saveData = async () => {
     try {
       // データをJSONとしてバックエンドに送信
-      await invoke('save_json_data', { jsonData: data });
+      await invoke('post_json_data', {jsonData: data});
+      setIsSetting(!isSetting);
       alert('データが保存されました');
     } catch (err) {
       setError('データの保存に失敗しました: ' + String(err));
@@ -39,19 +48,17 @@ function App() {
 
   // 編集ボタンのクリックハンドラ
   const handleEdit = (key: string) => {
-    // 編集機能は後で別ファイルで実装される予定
     console.log(`編集: ${key}, 値: ${data[key]}`);
     // モーダルウィンドウを表示する処理（後で実装）
   };
 
   // 追加ボタンのクリックハンドラ
   const handleAdd = () => {
-    // 追加機能は後で別ファイルで実装される予定
     console.log('データ追加');
     // モーダルウィンドウを表示する処理（後で実装）
   };
 
-  // コンポーネントがマウントされたときにデータを取得
+  // コンポーネントがマウントされたときにjsonデータをfetchする
   useEffect(() => {
     fetchData();
   }, []);
@@ -65,30 +72,30 @@ function App() {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="wrap">
       {/* 保存ボタン */}
-      <div className="mb-6">
+      <div className="top">
         <button 
           onClick={saveData}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="btn"
         >
           保存
         </button>
       </div>
 
       {/* データ表示 */}
-      <div className="mb-6">
-        <h2 className="text-xl font-bold mb-4">データ一覧</h2>
-        <div className="border rounded divide-y">
+      <div className="main">
+        <h2 className="title">データ一覧</h2>
+        <div className="list">
           {Object.entries(data).map(([key, value]) => (
-            <div key={key} className="p-3 flex justify-between items-center">
-              <div className="flex space-x-4">
-                <span className="font-medium">{key}:</span>
-                <span>{value}</span>
+            <div key={key} className="row">
+              <div className="content">
+                <span className="key">{key}:</span>
+                <span className="val">{value}</span>
               </div>
               <button 
                 onClick={() => handleEdit(key)}
-                className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                className="btn"
               >
                 編集
               </button>
@@ -101,7 +108,7 @@ function App() {
       <div>
         <button 
           onClick={handleAdd}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+          className="btn"
         >
           追加
         </button>
@@ -110,4 +117,4 @@ function App() {
   );
 }
 
-export default App;
+export default SettingMenue;
