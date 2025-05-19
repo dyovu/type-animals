@@ -1,5 +1,7 @@
 import { useEffect, useState, Dispatch, SetStateAction } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+
+
 
 import "../styles/settingMenue.css";
 
@@ -8,15 +10,20 @@ interface PathData {
   [key: string]: string;
 }
 
+interface ConvertedData {
+  [key: string]: string;
+}
+
 type isSettingProps = {
-    isSetting: boolean;
-    setIsSetting: Dispatch<SetStateAction<boolean>>;
+  isSetting: boolean;
+  setIsSetting: Dispatch<SetStateAction<boolean>>;
 };
 
 function SettingMenue({ isSetting, setIsSetting }: isSettingProps) {
   const [data, setData] = useState<PathData>({});
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null); // ユニオン型、どちらかの方のみ受け付ける
+  const [error, setError] = useState<string | null>(null); // ユニオン型、どちらかの型のみ受け付ける
   
   // バックエンドからデータを取得する関数
   const fetchData = async () => {
@@ -25,6 +32,17 @@ function SettingMenue({ isSetting, setIsSetting }: isSettingProps) {
       // invoke関数が返す値がPathData型であることを指定
       const jsonData = await invoke<PathData>('fetch_json_data');
       setData(jsonData);
+
+      const urls: Record<string, string> = {};
+      for (const [key, path] of Object.entries(jsonData)) {
+        try {
+          const base64Url = await invoke<string>('get_image_base64', { path });
+          urls[key] = base64Url;
+        } catch (imgErr) {
+          console.error(`画像の取得に失敗しました (${key}):`, imgErr);
+        }
+      }
+      setImageUrls(urls);
     } catch (err) {
       setError('データの取得に失敗しました: ' + String(err));
       console.error('データ取得エラー:', err);
@@ -92,6 +110,11 @@ function SettingMenue({ isSetting, setIsSetting }: isSettingProps) {
               <div className="content">
                 <span className="key">{key}:</span>
                 <span className="val">{value}</span>
+                {imageUrls[key] ? (
+                  <img src={imageUrls[key]} alt={`画像 ${key}`} />
+                ) : (
+                  <span>画像読込中...</span>
+                )}
               </div>
               <button 
                 onClick={() => handleEdit(key)}
