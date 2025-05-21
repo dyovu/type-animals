@@ -2,6 +2,9 @@ use std::path::PathBuf;
 use std::process::Child;
 use std::sync::{Arc, Mutex};
 use std::collections::{HashMap, VecDeque};
+use std::path::Path;
+use std::fs::File;
+use std::io::Read;
 
 use once_cell::sync::Lazy;
 
@@ -50,6 +53,7 @@ pub mod app_paths {
 
 pub mod json_data{
     use super::*;
+    use base64::prelude::*;
 
     // アプリケーションのフォルダに保存しているjsonファイルのデータを格納する
     pub static JSON_DATA: Lazy<Arc<Mutex<HashMap<String, String>>>> = Lazy::new(||Arc::new(Mutex::new(HashMap::new())));
@@ -93,6 +97,34 @@ pub mod json_data{
     #[tauri::command]
     pub fn post_json_data(json_data: HashMap<String, String>) {
         update_json_data(json_data.clone());
+    }
+    #[tauri::command]
+    pub fn fetch_image_base64(path: String) -> Result<String, String>{
+        let path = Path::new(&path);
+
+        let mut file = match File::open(&path) {
+            Ok(file) => file,
+            Err(err) => return Err(format!("ファイルを開けませんでした: {}", err)),
+        };
+        let mut buffer = Vec::new();
+        if let Err(err) = file.read_to_end(&mut buffer) {
+            return Err(format!("ファイルの読み込みに失敗しました: {}", err));
+        }
+        
+        // MIME タイプを取得
+        let mime_type = match path.extension().and_then(|ext| ext.to_str()) {
+            Some("jpg") | Some("jpeg") => "image/jpeg",
+            Some("png") => "image/png",
+            Some("gif") => "image/gif",
+            Some("webp") => "image/webp",
+            _ => "application/octet-stream",
+        };
+        
+        // Base64 エンコード
+        let base64_data = BASE64_STANDARD.encode(&buffer);
+        
+        // データURIスキーマとして返す
+        Ok(format!("data:{};base64,{}", mime_type, base64_data))
     }
 }
 

@@ -36,7 +36,7 @@ function SettingMenue({ isSetting, setIsSetting }: isSettingProps) {
       const urls: Record<string, string> = {};
       for (const [key, path] of Object.entries(jsonData)) {
         try {
-          const base64Url = await invoke<string>('get_image_base64', { path });
+          const base64Url = await invoke<string>('fetch_image_base64', { path });
           urls[key] = base64Url;
         } catch (imgErr) {
           console.error(`画像の取得に失敗しました (${key}):`, imgErr);
